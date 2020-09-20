@@ -13,3 +13,5 @@ The application was made alongside the "MVVM Running Tracker App" YouTube course
 * Coroutines
 * Room
 * Google Maps SDK
+* EasyPermissions (simplification of permission logic)
+* Timber (logging library)
