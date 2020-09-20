@@ -1,4 +1,4 @@
-package com.androiddevs.runningappyt
+package com.ficko.runnisticapp
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle

@@ -1,4 +1,4 @@
-package com.androiddevs.runningappyt
+package com.ficko.runnisticapp
 
 import org.junit.Test
 
