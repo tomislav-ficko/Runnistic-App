@@ -8,7 +8,7 @@ import androidx.room.TypeConverters
     entities = [Run::class],
     version = 1
 )
-@TypeConverters(Converters::class)
+@TypeConverters(Converters::class) // Instructs Room that it should look into the Converters class for TypeConverters
 abstract class Database : RoomDatabase() {
     abstract fun getRunDao(): RunDAO
 }
