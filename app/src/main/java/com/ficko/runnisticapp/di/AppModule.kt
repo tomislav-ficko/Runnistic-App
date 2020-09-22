@@ -30,4 +30,7 @@ object AppModule { // The purpose of AppModule is to tell Dagger how to create c
     @Provides
     // Instruction on how to create the instance of DAO
     fun provideRunDao(db: Database) = db.getRunDao()
+
+        // We don't need to explicitly write a 'provide' function for our MainRepository because Dagger will automatically know how to create it,
+        // since it knows how to create a RunDAO object, and this is the only dependency of the MainRepository class
 }

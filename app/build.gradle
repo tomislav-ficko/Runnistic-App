@@ -117,7 +117,9 @@ android {
         // Dagger Hilt
         implementation "com.google.dagger:hilt-android:$hilt_version"
         kapt "com.google.dagger:hilt-android-compiler:$hilt_version"
-        kapt "androidx.hilt:hilt-compiler:1.0.0-alpha02"
+
+        implementation "androidx.hilt:hilt-lifecycle-viewmodel:1.0.0-alpha01"
+        kapt "androidx.hilt:hilt-compiler:1.0.0-alpha01"
 
         // Activity KTX for viewModels()
         implementation "androidx.activity:activity-ktx:1.1.0"
