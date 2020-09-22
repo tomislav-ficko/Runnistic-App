@@ -27,7 +27,8 @@ android {
     }
 
     buildTypes.each {
-        it.resValue 'string', 'MAPS_API_KEY', maps_api_key // Makes the "maps_api_key" value from gradle.properties available as a string resource ("@string/MAPS_API_KEY")
+        it.resValue 'string', 'MAPS_API_KEY', maps_api_key
+        // Makes the "maps_api_key" value from gradle.properties available as a string resource ("@string/MAPS_API_KEY")
 
 //        If we wanted this value to be available in the code as a constant,
 //        we would need to put "it.buildConfigField 'String', 'MAPS_API_KEY', maps_api_key" here.
