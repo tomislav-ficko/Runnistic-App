@@ -11,4 +11,6 @@
     <string name="nav_menu_run_title">Your Runs</string>
     <string name="nav_menu_statistics_title">Statistics</string>
     <string name="nav_menu_settings_title">Settings</string>
+
+    <string name="initial_time">00:00:00</string>
 </resources>
