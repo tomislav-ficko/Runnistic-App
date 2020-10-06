@@ -1,5 +1,7 @@
 package com.ficko.runnisticapp.other
 
+import android.graphics.Color
+
 object Constants {
     const val DATABASE_NAME = "running_db"
     const val NO_COMPRESSION = 100
@@ -16,4 +18,8 @@ object Constants {
 
     const val LOCATION_UPDATE_INTERVAL = 5000L // We will get a location update every five seconds
     const val FASTEST_LOCATION_INTERVAL = 2000L // We will never get more updates than this interval enables, a precaution for saving memory resources
+
+    const val POLYLINE_COLOR = Color.RED
+    const val POLYLINE_WIDTH = 8f
+    const val MAP_ZOOM = 15f
 }

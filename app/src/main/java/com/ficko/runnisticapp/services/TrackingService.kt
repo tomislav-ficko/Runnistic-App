@@ -93,6 +93,10 @@ class TrackingService : LifecycleService() {
         }
     }
 
+    private fun pauseService() {
+        isTracking.postValue(false)
+    }
+
     @SuppressLint("MissingPermission") // Suppress the error because we've already checked for the permissions inside the if statement
     private fun updateLocationTracking(isTracking: Boolean) {
         if (isTracking) { // When tracking is started
@@ -135,10 +139,12 @@ class TrackingService : LifecycleService() {
                         isFirstRun = false
                     } else {
                         Timber.d("Resuming service")
+                        startForegroundService() // Just temporary for testing, so the service can be resumed
                     }
                 }
                 ACTION_PAUSE_SERVICE -> {
                     Timber.d("Service paused")
+                    pauseService()
                 }
                 ACTION_STOP_SERVICE -> {
                     Timber.d("Service stopped")
