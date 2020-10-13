@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.Context
 import android.os.Build
 import pub.devrel.easypermissions.EasyPermissions
+import java.text.DecimalFormat
+import java.text.NumberFormat
 import java.util.concurrent.TimeUnit
 
 object TrackingUtility {
@@ -26,6 +28,7 @@ object TrackingUtility {
         }
 
     fun getFormattedStopwatchTime(ms: Long, includeMillis: Boolean = false): String {
+        val f: NumberFormat = DecimalFormat("00")
         var milliseconds = ms // We are copying the value so that we can edit it
 
         val hours = TimeUnit.MILLISECONDS.toHours(milliseconds)
@@ -37,17 +40,12 @@ object TrackingUtility {
         val seconds = TimeUnit.MILLISECONDS.toSeconds(milliseconds)
 
         if (!includeMillis) {
-            return "${if (hours < 10) "0" else ""}$hours:" +
-                    "${if (minutes < 10) "0" else ""}$minutes:" +
-                    "${if (seconds < 10) "0" else ""}$seconds:"
+            return "${f.format(hours)}:${f.format(minutes)}:${f.format(seconds)}"
         }
 
         milliseconds -= TimeUnit.SECONDS.toMillis(seconds)
         milliseconds /= 10  // We are dividing it so that we get a two-digit number for the milliseconds
 
-        return "${if (hours < 10) "0" else ""}$hours:" +
-                "${if (minutes < 10) "0" else ""}$minutes:" +
-                "${if (seconds < 10) "0" else ""}$seconds:" +
-                "${if (milliseconds < 10) "0" else ""}$milliseconds:"
+        return "${f.format(hours)}:${f.format(minutes)}:${f.format(seconds)}:${f.format(milliseconds)}"
     }
 }
