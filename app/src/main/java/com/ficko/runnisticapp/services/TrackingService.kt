@@ -27,6 +27,7 @@ import com.ficko.runnisticapp.other.Constants.LOCATION_UPDATE_INTERVAL
 import com.ficko.runnisticapp.other.Constants.NOTIFICATION_CHANNEL_ID
 import com.ficko.runnisticapp.other.Constants.NOTIFICATION_CHANNEL_NAME
 import com.ficko.runnisticapp.other.Constants.NOTIFICATION_ID
+import com.ficko.runnisticapp.other.Constants.TIMER_UPDATE_INTERVAL
 import com.ficko.runnisticapp.other.TrackingUtility
 import com.ficko.runnisticapp.ui.MainActivity
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -35,6 +36,10 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.maps.model.LatLng
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 typealias Polyline = MutableList<LatLng> // A single polyline i.e. series of coordinates which form a single connected line on the map
@@ -51,9 +56,14 @@ class TrackingService : LifecycleService() {
 
     lateinit var fusedLocationProviderClient: FusedLocationProviderClient
 
+    private val runTimeInSeconds =
+        MutableLiveData<Long>() // LiveData for updating the time in the notification (doesn't need as frequent updates as in the app itself)
+
     companion object { // A new value will be posted inside this object whenever the tracking state changes
         val isTracking = MutableLiveData<Boolean>()
         val pathPoints = MutableLiveData<Polylines>()
+        val runTimeInMillis =
+            MutableLiveData<Long>() // LiveData for updating the time in the application
     }
 
     val locationCallback = object : LocationCallback() {
@@ -71,9 +81,11 @@ class TrackingService : LifecycleService() {
         }
     }
 
-    private fun postInitialValues() {
+    private fun postInitialValues() { // Initial values must be set, because a NullPointerException could otherwise happen
         isTracking.postValue(false)
         pathPoints.postValue(mutableListOf())
+        runTimeInMillis.postValue(0L)
+        runTimeInSeconds.postValue(0L)
     }
 
     private fun addEmptyPolyline() = // Add new (empty) polyline when tracking is resumed
@@ -93,8 +105,40 @@ class TrackingService : LifecycleService() {
         }
     }
 
+    private var isTimerEnabled = false
+    private var lapTime = 0L // Time that will be reset each time when the run is paused and started
+    private var totalRunTime = 0L // Total run time, all the lap times added together
+    private var timeStarted = 0L // Timestamp when the timer was started
+    private var lastSecondTimestamp =
+        0L // Last recorded time, in seconds (needed inside the startTimer() while loop)
+
+    private fun startTimer() {
+        addEmptyPolyline()
+        isTracking.postValue(true)
+        timeStarted = System.currentTimeMillis()
+        isTimerEnabled = true
+
+        CoroutineScope(Dispatchers.Main).launch {
+            while (isTracking.value!!) {
+                lapTime =
+                    System.currentTimeMillis() - timeStarted // Time difference between the current time and starting time of the run
+                runTimeInMillis.postValue(totalRunTime + lapTime)
+
+                if (runTimeInMillis.value!! >= lastSecondTimestamp + 1000L) { // Checks if a whole second has passed between the current time, and last recorded time in seconds
+                    runTimeInSeconds.postValue(runTimeInSeconds.value!! + 1)
+                    lastSecondTimestamp += 1000L
+                }
+
+                delay(TIMER_UPDATE_INTERVAL) // We don't want to update the observers all the time, only every TIMER_UPDATE_INTERVAL (in ms)
+            }
+
+            totalRunTime += lapTime // Since we reached this point, we are outside the while loop and stopped tracking the run
+        }
+    }
+
     private fun pauseService() {
         isTracking.postValue(false)
+        isTimerEnabled = false
     }
 
     @SuppressLint("MissingPermission") // Suppress the error because we've already checked for the permissions inside the if statement
@@ -139,7 +183,7 @@ class TrackingService : LifecycleService() {
                         isFirstRun = false
                     } else {
                         Timber.d("Resuming service")
-                        startForegroundService() // Just temporary for testing, so the service can be resumed
+                        startTimer()
                     }
                 }
                 ACTION_PAUSE_SERVICE -> {
@@ -155,9 +199,8 @@ class TrackingService : LifecycleService() {
         return super.onStartCommand(intent, flags, startId)
     }
 
-    private fun startForegroundService() {
-        addEmptyPolyline()
-
+    private fun startForegroundService() { // Executed only when first starting the application
+        startTimer()
         isTracking.postValue(true) // Start tracking
 
         val notificationManager =

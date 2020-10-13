@@ -12,6 +12,7 @@ import com.ficko.runnisticapp.other.Constants.ACTION_START_OR_RESUME_SERVICE
 import com.ficko.runnisticapp.other.Constants.MAP_ZOOM
 import com.ficko.runnisticapp.other.Constants.POLYLINE_COLOR
 import com.ficko.runnisticapp.other.Constants.POLYLINE_WIDTH
+import com.ficko.runnisticapp.other.TrackingUtility
 import com.ficko.runnisticapp.services.Polyline
 import com.ficko.runnisticapp.services.TrackingService
 import com.ficko.runnisticapp.ui.viewmodels.MainViewModel
@@ -30,6 +31,8 @@ class TrackingFragment : Fragment(R.layout.fragment_tracking) {
     private var pathPoints = mutableListOf<Polyline>()
 
     private var map: GoogleMap? = null
+
+    private var currentTimeInMillis = 0L
 
     // We need to worry about the lifecycle of our MapView, which is why we need to override the default methods
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -55,6 +58,12 @@ class TrackingFragment : Fragment(R.layout.fragment_tracking) {
             pathPoints = it
             addLatestPolyline()
             focusCameraOnUser()
+        })
+
+        TrackingService.runTimeInMillis.observe(viewLifecycleOwner, Observer {
+            currentTimeInMillis = it
+            val formattedTime = TrackingUtility.getFormattedStopwatchTime(currentTimeInMillis, true)
+            tvTimer.text = formattedTime
         })
 
     }
