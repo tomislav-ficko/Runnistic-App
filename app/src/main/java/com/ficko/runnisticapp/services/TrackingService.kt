@@ -1,12 +1,11 @@
 package com.ficko.runnisticapp.services
 
 import android.annotation.SuppressLint
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.NotificationManager.IMPORTANCE_LOW
 import android.app.PendingIntent
-import android.app.PendingIntent.FLAG_UPDATE_CURRENT
+import android.app.PendingIntent.*
 import android.content.Context
 import android.content.Intent
 import android.location.Location
@@ -19,7 +18,6 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import com.ficko.runnisticapp.R
 import com.ficko.runnisticapp.other.Constants.ACTION_PAUSE_SERVICE
-import com.ficko.runnisticapp.other.Constants.ACTION_SHOW_TRACKING_FRAGMENT
 import com.ficko.runnisticapp.other.Constants.ACTION_START_OR_RESUME_SERVICE
 import com.ficko.runnisticapp.other.Constants.ACTION_STOP_SERVICE
 import com.ficko.runnisticapp.other.Constants.FASTEST_LOCATION_INTERVAL
@@ -29,18 +27,19 @@ import com.ficko.runnisticapp.other.Constants.NOTIFICATION_CHANNEL_NAME
 import com.ficko.runnisticapp.other.Constants.NOTIFICATION_ID
 import com.ficko.runnisticapp.other.Constants.TIMER_UPDATE_INTERVAL
 import com.ficko.runnisticapp.other.TrackingUtility
-import com.ficko.runnisticapp.ui.MainActivity
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.maps.model.LatLng
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import javax.inject.Inject
 
 typealias Polyline = MutableList<LatLng> // A single polyline i.e. series of coordinates which form a single connected line on the map
 
@@ -50,11 +49,19 @@ typealias Polylines = MutableList<Polyline> // List of poly-lines
 
 
 // By extending the LifecycleService class, we can tell the LiveData "observe()" function in which lifecycle state our TrackingService currently is
+@AndroidEntryPoint // Needed in order to properly inject dependencies into the class
 class TrackingService : LifecycleService() {
 
     var isFirstRun = true
 
+    @Inject
     lateinit var fusedLocationProviderClient: FusedLocationProviderClient
+
+    @Inject
+    lateinit var baseNotificationBuilder: NotificationCompat.Builder
+
+    // Needed because the notification will change from the baseNotificationBuilder as we change the time and active buttons
+    lateinit var currentNotificationBuilder: NotificationCompat.Builder
 
     private val runTimeInSeconds =
         MutableLiveData<Long>() // LiveData for updating the time in the notification (doesn't need as frequent updates as in the app itself)
@@ -141,6 +148,33 @@ class TrackingService : LifecycleService() {
         isTimerEnabled = false
     }
 
+    private fun updateNotificationTrackingState(isTracking: Boolean) {
+        val notificationActionText = if (isTracking) "Pause" else "Resume"
+        val pendingIntent = if (isTracking) {
+            val pauseIntent = Intent(this, TrackingService::class.java).apply {
+                action = ACTION_PAUSE_SERVICE
+            }
+            PendingIntent.getService(this, 1, pauseIntent, FLAG_UPDATE_CURRENT)
+        } else {
+            val resumeIntent = Intent(this, TrackingService::class.java).apply {
+                action = ACTION_START_OR_RESUME_SERVICE
+            }
+            PendingIntent.getService(this, 2, resumeIntent, FLAG_UPDATE_CURRENT)
+        }
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // This will remove the previous notification text so that we replace it, instead of appending the new text
+        currentNotificationBuilder.javaClass.getDeclaredField("mActions").apply {
+            isAccessible = true
+            // Set the mActions field to an empty list, clearing its value
+            set(currentNotificationBuilder, ArrayList<NotificationCompat.Action>())
+        }
+        currentNotificationBuilder = baseNotificationBuilder
+            .addAction(R.drawable.ic_pause_black_24dp, notificationActionText, pendingIntent)
+        notificationManager.notify(NOTIFICATION_ID, currentNotificationBuilder.build())
+    }
+
     @SuppressLint("MissingPermission") // Suppress the error because we've already checked for the permissions inside the if statement
     private fun updateLocationTracking(isTracking: Boolean) {
         if (isTracking) { // When tracking is started
@@ -164,11 +198,13 @@ class TrackingService : LifecycleService() {
     override fun onCreate() {
         super.onCreate()
 
+        currentNotificationBuilder = baseNotificationBuilder
         postInitialValues()
         fusedLocationProviderClient = FusedLocationProviderClient(this)
 
         isTracking.observe(this, Observer {
             updateLocationTracking(it) // Start observing isTracking for changes (when tracking is started or stopped)
+            updateNotificationTrackingState(it)
         })
     }
 
@@ -211,19 +247,14 @@ class TrackingService : LifecycleService() {
             createNotificationChannel(notificationManager)
         }
 
-        val notification = createNotification()
-        startForeground(NOTIFICATION_ID, notification)
-    }
+        startForeground(NOTIFICATION_ID, baseNotificationBuilder.build())
 
-    private fun getPendingIntentForMainActivity() =
-        PendingIntent.getActivity(
-            this,
-            0, // Set to zero because we don't need it afterwards
-            Intent(this, MainActivity::class.java).also {
-                it.action = ACTION_SHOW_TRACKING_FRAGMENT
-            },
-            FLAG_UPDATE_CURRENT // Means that whenever we launch the PendingIntent and it already exists, it will update it instead of re-creating it
-        )
+        runTimeInSeconds.observe(this, Observer {
+            val notification = currentNotificationBuilder
+                .setContentText(TrackingUtility.getFormattedStopwatchTime(it * 1000L)) // Multiplication because we want the time in seconds
+            notificationManager.notify(NOTIFICATION_ID, notification.build())
+        })
+    }
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun createNotificationChannel(notificationManager: NotificationManager) {
@@ -233,16 +264,5 @@ class TrackingService : LifecycleService() {
             IMPORTANCE_LOW // Must be set to low, so that we avoid making notification sounds (since the notification will be updated each second)
         )
         notificationManager.createNotificationChannel(channel)
-    }
-
-    private fun createNotification(): Notification {
-        return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-            .setAutoCancel(false)   // Prevent notification disappearing if the user clicks on the it
-            .setOngoing(true)       // Notification cannot be swiped away
-            .setSmallIcon(R.drawable.ic_directions_run_black_24dp)
-            .setContentTitle(getString(R.string.app_name))
-            .setContentText(getString(R.string.initial_time))
-            .setContentIntent(getPendingIntentForMainActivity())
-            .build()
     }
 }
