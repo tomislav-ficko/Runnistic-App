@@ -53,6 +53,7 @@ typealias Polylines = MutableList<Polyline> // List of poly-lines
 class TrackingService : LifecycleService() {
 
     var isFirstRun = true
+    var serviceKilled = false
 
     @Inject
     lateinit var fusedLocationProviderClient: FusedLocationProviderClient
@@ -170,9 +171,12 @@ class TrackingService : LifecycleService() {
             // Set the mActions field to an empty list, clearing its value
             set(currentNotificationBuilder, ArrayList<NotificationCompat.Action>())
         }
-        currentNotificationBuilder = baseNotificationBuilder
-            .addAction(R.drawable.ic_pause_black_24dp, notificationActionText, pendingIntent)
-        notificationManager.notify(NOTIFICATION_ID, currentNotificationBuilder.build())
+
+        if (!serviceKilled) {
+            currentNotificationBuilder = baseNotificationBuilder
+                .addAction(R.drawable.ic_pause_black_24dp, notificationActionText, pendingIntent)
+            notificationManager.notify(NOTIFICATION_ID, currentNotificationBuilder.build())
+        }
     }
 
     @SuppressLint("MissingPermission") // Suppress the error because we've already checked for the permissions inside the if statement
@@ -208,6 +212,16 @@ class TrackingService : LifecycleService() {
         })
     }
 
+    // Gets called when the user chooses the menu option to cancel the run
+    private fun killService() {
+        serviceKilled = true
+        isFirstRun = true
+        pauseService()
+        postInitialValues()
+        stopForeground(true)
+        stopSelf()
+    }
+
     // Gets called whenever we send a command (Intent with action attached) to the service
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
 
@@ -228,6 +242,7 @@ class TrackingService : LifecycleService() {
                 }
                 ACTION_STOP_SERVICE -> {
                     Timber.d("Service stopped")
+                    killService()
                 }
             }
         }
@@ -250,9 +265,11 @@ class TrackingService : LifecycleService() {
         startForeground(NOTIFICATION_ID, baseNotificationBuilder.build())
 
         runTimeInSeconds.observe(this, Observer {
-            val notification = currentNotificationBuilder
-                .setContentText(TrackingUtility.getFormattedStopwatchTime(it * 1000L)) // Multiplication because we want the time in seconds
-            notificationManager.notify(NOTIFICATION_ID, notification.build())
+            if (!serviceKilled) {
+                val notification = currentNotificationBuilder
+                    .setContentText(TrackingUtility.getFormattedStopwatchTime(it * 1000L)) // Multiplication because we want the time in seconds
+                notificationManager.notify(NOTIFICATION_ID, notification.build())
+            }
         })
     }
 
