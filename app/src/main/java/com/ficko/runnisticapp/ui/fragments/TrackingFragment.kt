@@ -230,11 +230,10 @@ class TrackingFragment : Fragment(R.layout.fragment_tracking) {
             distanceInMeters += TrackingUtility.calculatePolylineLength(polyline).toInt()
         }
         // Returns speed with a single decimal place
-        val avgSpeed =
-            round((distanceInMeters / 1000f) / (currentTimeInMillis / 1000 / 360) * 10) / 10f
+        val avgSpeed = calculateAvgSpeed(distanceInMeters)
         val dateTimestamp = Calendar.getInstance().timeInMillis
-        val caloriesBurned = ((distanceInMeters / 1000f) * weight).toInt()
-        val run = Run(
+        val caloriesBurned = calculateCaloriesBurned(distanceInMeters)
+        return Run(
             bmp,
             dateTimestamp,
             avgSpeed,
@@ -242,8 +241,13 @@ class TrackingFragment : Fragment(R.layout.fragment_tracking) {
             currentTimeInMillis,
             caloriesBurned
         )
-        return run
     }
+
+    private fun calculateAvgSpeed(distanceInMeters: Int) =
+        round((distanceInMeters / 1000f) / (currentTimeInMillis / 1000 / 360) * 10) / 10f
+
+    private fun calculateCaloriesBurned(distanceInMeters: Int) =
+        ((distanceInMeters / 1000f) * weight).toInt()
 
     private fun focusCameraOnUser() {
         if (pathPoints.isNotEmpty() && pathPoints.last().isNotEmpty()) {
