@@ -6,8 +6,11 @@ import android.os.Bundle
 import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Observer
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.ficko.runnisticapp.R
+import com.ficko.runnisticapp.adapters.RunAdapter
 import com.ficko.runnisticapp.other.Constants.REQUEST_CODE_LOCATION_PERMISSION
 import com.ficko.runnisticapp.other.TrackingUtility
 import com.ficko.runnisticapp.ui.viewmodels.MainViewModel
@@ -22,14 +25,26 @@ class RunFragment : Fragment(R.layout.fragment_run), EasyPermissions.PermissionC
     // Since Dagger manages the ViewModelFactory behind the scenes, it will choose the appropriate ViewModel from "viewModels()" and assign it to the variable
     private val viewModel: MainViewModel by viewModels()
 
+    private lateinit var runAdapter: RunAdapter
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        requestLocationPermissions()
+        setupRecyclerView()
+        viewModel.runsSortedByDate.observe(viewLifecycleOwner, Observer {
+            runAdapter.submitList(it)
+        })
 
         fab.setOnClickListener {
             findNavController().navigate(R.id.action_runFragment_to_trackingFragment)
         }
+    }
 
-        requestLocationPermissions()
+    private fun setupRecyclerView() = rvRuns.apply {
+        runAdapter = RunAdapter()
+        adapter = runAdapter
+        layoutManager = LinearLayoutManager(requireContext())
     }
 
     private fun requestLocationPermissions() {
