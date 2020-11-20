@@ -28,6 +28,7 @@ class MainActivity : AppCompatActivity() {
         // Connecting bottomNavigationView to Navigation Components
         // Whenever an item is clicked on the bottomNavigationView, Android will navigate to the selected fragment
         bottomNavigationView.setupWithNavController(navigationController)
+        bottomNavigationView.setOnNavigationItemReselectedListener { /* NO-OP */ }
 
         // Hiding the bottomNavigationView when the SetupFragment and TrackingFragment are visible
         // The listener will be triggered whenever our destination has changed using Navigation Components
